@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/csv"
 	"fmt"
 	"os"
 )
@@ -25,4 +26,21 @@ func readFile() {
 		return
 	}
 
+	content, err := os.ReadFile(file.Name())
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Println(string(content))
+
+	reader := csv.NewReader(file)
+	lines, err := reader.ReadAll()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	for _, line := range lines {
+		fmt.Println(line)
+	}
 }
