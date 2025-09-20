@@ -1,10 +1,5 @@
 package main
 
-import (
-	"strconv"
-	"strings"
-)
-
 func MultiplyString(num1 string, num2 string) string {
 	if num1 == "0" || num2 == "0" {
 		return "0"
@@ -19,12 +14,12 @@ func MultiplyString(num1 string, num2 string) string {
 			result[i+j] += s / 10
 		}
 	}
-	resultStr := make([]string, len(result))
-	for i := 0; i < len(result); i++ {
-		resultStr[i] = strconv.Itoa(result[i])
+	if result[0] == 0 {
+		result = result[1:]
 	}
-	if resultStr[0] == "0" {
-		resultStr = resultStr[1:]
+	bytes := make([]byte, len(result))
+	for i, v := range result {
+		bytes[i] = byte(v + '0')
 	}
-	return strings.Join(resultStr, "")
+	return string(bytes)
 }

@@ -5,8 +5,8 @@ import (
 )
 
 func main() {
+	readFile()
 	checkPlusOne()
-	//readFile()
 	fmt.Println(MultiplyString("123", "456"))
 	fmt.Println(addBinary("11", "1"))
 }
