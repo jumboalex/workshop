@@ -6,7 +6,9 @@ import (
 
 func main() {
 	checkPlusOne()
-	readFile()
+	//readFile()
+	fmt.Println(MultiplyString("123", "456"))
+	fmt.Println(addBinary("11", "1"))
 }
 
 func checkPlusOne() {
@@ -18,5 +20,10 @@ func checkPlusOne() {
 
 	for _, test := range tests {
 		fmt.Println(PlusOne(test))
+	}
+
+	num1 := "123"
+	for i := len(num1) - 1; i >= 0; i-- {
+		fmt.Println(num1[i] - '0')
 	}
 }
