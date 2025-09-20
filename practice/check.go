@@ -9,6 +9,7 @@ func main() {
 	checkPlusOne()
 	fmt.Println(MultiplyString("123", "456"))
 	fmt.Println(addBinary("11", "1"))
+	fmt.Println(removeDuplicates([]int{0, 0, 1, 1, 1, 2, 2, 3, 3, 4}))
 }
 
 func checkPlusOne() {
