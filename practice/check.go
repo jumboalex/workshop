@@ -13,6 +13,8 @@ func main() {
 	fmt.Println(gcdOfStrings("ABABAB", "ABAB"))
 	fmt.Println(canPlaceFlowers([]int{0, 0, 0, 0, 0, 1, 0, 0}, 1))
 	fmt.Println(maxOperations([]int{3, 1, 3, 4, 3}, 6))
+	fmt.Println(maxVowels("aeiou", 2))
+	fmt.Println(longestSubarray([]int{0, 1, 1, 1, 0, 1, 1, 0, 1}))
 }
 
 func checkPlusOne() {
