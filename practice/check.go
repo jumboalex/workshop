@@ -12,6 +12,7 @@ func main() {
 	fmt.Println(removeDuplicates([]int{0, 0, 1, 1, 1, 2, 2, 3, 3, 4}))
 	fmt.Println(gcdOfStrings("ABABAB", "ABAB"))
 	fmt.Println(canPlaceFlowers([]int{0, 0, 0, 0, 0, 1, 0, 0}, 1))
+	fmt.Println(maxOperations([]int{3, 1, 3, 4, 3}, 6))
 }
 
 func checkPlusOne() {
