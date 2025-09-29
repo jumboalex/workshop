@@ -1,4 +1,9 @@
-package main
+package linkedlist
+
+type ListNode struct {
+	Val  int
+	Next *ListNode
+}
 
 type Node struct {
 	Val    int
@@ -6,7 +11,42 @@ type Node struct {
 	Random *Node
 }
 
-func copyRandomList(head *Node) *Node {
+func ReorderList(head *ListNode) {
+	if head == nil || head.Next == nil {
+		return
+	}
+
+	// Find middle
+	slow, fast := head, head
+	for fast.Next != nil && fast.Next.Next != nil {
+		slow = slow.Next
+		fast = fast.Next.Next
+	}
+
+	// Reverse second half
+	var prev *ListNode
+	curr := slow.Next
+	slow.Next = nil
+
+	for curr != nil {
+		next := curr.Next
+		curr.Next = prev
+		prev = curr
+		curr = next
+	}
+
+	// Merge two halves
+	first, second := head, prev
+	for second != nil {
+		tmp1, tmp2 := first.Next, second.Next
+		first.Next = second
+		second.Next = tmp1
+		first = tmp1
+		second = tmp2
+	}
+}
+
+func CopyRandomList(head *Node) *Node {
 	if head == nil {
 		return nil
 	}

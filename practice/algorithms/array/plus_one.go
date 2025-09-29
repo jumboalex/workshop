@@ -1,4 +1,4 @@
-package main
+package arrayproblems
 
 func PlusOne(digits []int) []int {
 	borrow := 1
