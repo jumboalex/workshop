@@ -76,6 +76,7 @@ func readJSONByLine() {
 	}
 	defer file.Close()
 
+	var cars []CarData
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		var car CarData
@@ -85,10 +86,14 @@ func readJSONByLine() {
 			continue
 		}
 
-		fmt.Println(car)
+		cars = append(cars, car)
 	}
 
 	if err := scanner.Err(); err != nil {
 		fmt.Println(err)
+	}
+
+	for _, car := range cars {
+		fmt.Println(car)
 	}
 }
