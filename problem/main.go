@@ -46,16 +46,16 @@ func main() {
 	for {
 		record, err := reader.Read()
 		if err != nil {
-			fmt.Println(err)
+			break
 		}
 
 		t, err := time.Parse(time.RFC3339, record[0])
 		if err != nil {
-			fmt.Println(err)
+			continue
 		}
 		amount, err := strconv.Atoi(record[2])
 		if err != nil {
-			fmt.Println(err)
+			continue
 		}
 
 		transaction := Transaction{
@@ -66,6 +66,7 @@ func main() {
 		}
 
 		transactions = append(transactions, transaction)
+		fmt.Println(transaction)
 	}
 
 	merchantReport := make(map[string]map[time.Time]int64)
@@ -79,22 +80,41 @@ func main() {
 		}
 	}
 
-	for m, v := range merchantReport {
+	for merchant, timestampAmounts := range merchantReport {
+		if len(timestampAmounts) < 2 {
+			continue
+		}
+
 		times := []time.Time{}
-		for k := range v {
+		for k := range timestampAmounts {
 			times = append(times, k)
 		}
 		sort.Slice(times, func(i, j int) bool {
 			return times[i].Before(times[j])
 		})
-		left := 0
-		right := 0
-		for right < len(times) {
-			d := times[right].Sub(times[left])
-			for d.Hours() < 7*24 {
-				// adding amount
-			}
 
+		// Calculate intervals between consecutive transactions
+		intervals := make(map[int]int) // interval in days -> count
+		for i := 1; i < len(times); i++ {
+			days := int(times[i].Sub(times[i-1]).Hours() / 24)
+			intervals[days]++
+		}
+
+		// Find the most common interval (if it appears more than once)
+		var mostCommonInterval int
+		var maxCount int
+		for interval, count := range intervals {
+			if count > maxCount {
+				maxCount = count
+				mostCommonInterval = interval
+			}
+		}
+
+		// Only consider it recurring if the interval is weekly (7 days)
+		if mostCommonInterval == 7 && maxCount >= 1 {
+			amount := timestampAmounts[times[0]]
+			amountStr := fmt.Sprintf("$%.2f", float64(amount)/100)
+			fmt.Printf("%s: %s / week\n", merchant, amountStr)
 		}
 	}
 
