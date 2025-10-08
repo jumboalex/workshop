@@ -164,9 +164,104 @@ func LengthOfLongestSubstringKDistinct(s string, k int) int {
 	return maxLen
 }
 
+func FindAnagrams(s string, p string) []int {
+	result := []int{}
+	if len(s) < len(p) {
+		return result
+	}
+
+	sChars := make(map[byte]int)
+	pChars := make(map[byte]int)
+
+	for i := 0; i < len(p); i++ {
+		c := p[i]
+		if _, ok := pChars[c]; !ok {
+			pChars[c] = 1
+		} else {
+			pChars[c]++
+		}
+	}
+
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if _, ok := sChars[c]; ok {
+			sChars[c]++
+		} else {
+			sChars[c] = 1
+		}
+
+		if i >= len(p) {
+			ch := s[i-len(p)]
+			if sChars[ch] == 1 {
+				delete(sChars, ch)
+			} else {
+				sChars[ch]--
+			}
+		}
+
+		if mapsEqual(pChars, sChars) {
+			result = append(result, i-len(p)+1)
+		}
+	}
+	return result
+}
+
+func CheckInclusion(s1 string, s2 string) bool {
+	if len(s2) < len(s1) {
+		return false
+	}
+
+	s1Map := make(map[byte]int)
+	s2Map := make(map[byte]int)
+
+	for i := 0; i < len(s1); i++ {
+		c := s1[i]
+		if _, ok := s1Map[c]; ok {
+			s1Map[c]++
+		} else {
+			s1Map[c] = 1
+		}
+	}
+
+	for i := 0; i < len(s2); i++ {
+		c := s2[i]
+		if _, ok := s2Map[c]; ok {
+			s2Map[c]++
+		} else {
+			s2Map[c] = 1
+		}
+
+		if i >= len(s1) {
+			ch := s2[i-len(s1)]
+			if s2Map[ch] == 1 {
+				delete(s2Map, ch)
+			} else {
+				s2Map[ch]--
+			}
+		}
+
+		if mapsEqual(s1Map, s2Map) {
+			return true
+		}
+	}
+	return false
+}
+
 func max(a, b int) int {
 	if a > b {
 		return a
 	}
 	return b
+}
+
+func mapsEqual(a, b map[byte]int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if b[k] != v {
+			return false
+		}
+	}
+	return true
 }

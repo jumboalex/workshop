@@ -55,6 +55,12 @@ func runArrayExamples() {
 	kidsResult := arrayproblems.KidsWithCandies(candies, extraCandies)
 	fmt.Printf("KidsWithCandies(%v, %d) = %v\n", candies, extraCandies, kidsResult)
 
+	// PrintDiagonalOrder
+	fmt.Print("PrintDiagonalOrder([[1,2,3],[4,5,6],[7,8,9]]) = ")
+	arrayproblems.PrintDiagonalOrder([][]int{{1, 2, 3}, {4, 5, 6}, {7, 8, 9}})
+	arrayproblems.PrintDiagonalOrder([][]int{{1, 2}, {4, 5}, {7, 8}})
+	arrayproblems.PrintDiagonalOrder([][]int{{1, 2, 3, 4}, {5, 6, 7, 8}})
+
 	fmt.Println()
 }
 

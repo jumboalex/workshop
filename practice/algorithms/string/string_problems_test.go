@@ -141,3 +141,35 @@ func TestLengthOfLongestSubstringKDistinct(t *testing.T) {
 		})
 	}
 }
+
+func TestFindAnagrams(t *testing.T) {
+	tests := []struct {
+		name string
+		s    string
+		p    string
+		want []int
+	}{
+		{"example 1", "cbaebabacd", "abc", []int{0, 6}},
+		{"example 2", "abab", "ab", []int{0, 1, 2}},
+		{"no anagrams", "hello", "world", []int{}},
+		{"p longer than s", "ab", "abc", []int{}},
+		{"single char", "aaa", "a", []int{0, 1, 2}},
+		{"empty s", "", "abc", []int{}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FindAnagrams(tt.s, tt.p)
+			if len(got) != len(tt.want) {
+				t.Errorf("FindAnagrams(%q, %q) = %v, want %v", tt.s, tt.p, got, tt.want)
+				return
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("FindAnagrams(%q, %q) = %v, want %v", tt.s, tt.p, got, tt.want)
+					return
+				}
+			}
+		})
+	}
+}

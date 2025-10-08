@@ -89,3 +89,55 @@ func CopyRandomList(head *Node) *Node {
 
 	return newHead
 }
+
+func MergeTwoLists(list1 *ListNode, list2 *ListNode) *ListNode {
+	dummy := &ListNode{}
+	current := dummy
+
+	for list1 != nil && list2 != nil {
+		if list1.Val <= list2.Val {
+			current.Next = list1
+			list1 = list1.Next
+		} else {
+			current.Next = list2
+			list2 = list2.Next
+		}
+		current = current.Next
+	}
+
+	if list1 != nil {
+		current.Next = list1
+	}
+	if list2 != nil {
+		current.Next = list2
+	}
+
+	return dummy.Next
+}
+
+func ReorderList2(head *ListNode) {
+	if head == nil || head.Next == nil {
+		return
+	}
+
+	count := 0
+	for i := head; i != nil; i = i.Next {
+		count++
+	}
+	i := head
+	for step := 0; step < count/2; step++ {
+		j := i
+		for j.Next != nil && j.Next.Next != nil {
+			j = j.Next
+		}
+		if j.Next == nil {
+			break
+		}
+		k := j.Next
+		j.Next = nil
+		k.Next = i.Next
+		i.Next = k
+		i = k.Next
+	}
+
+}
