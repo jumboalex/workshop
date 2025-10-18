@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -92,84 +93,171 @@ func (t *Table) removeRevDep(dep string, target string) {
 // recalculate computes the value for a cell and recursively triggers
 // recalculation for all cells that depend on it (reverse dependencies).
 func (t *Table) recalculate(cell string) {
-	// A simple number formula was already calculated in set_cell.
-	// Only proceed if it's a formula with dependencies.
 	cellStruct, exists := t.cells[cell]
-	if !exists || len(cellStruct.deps) == 0 {
-		// If it's a simple number, its value is already set.
-		// Continue to propagate changes to its dependents.
-		goto propagate
+	if !exists {
+		return
 	}
 
-	// Evaluation logic (Simplified: only supports +-*/ on cell references)
-
-	// Start with the formula string
-	evalFormula := cellStruct.formula
-
-	// Replace cell references with their current values
-	for _, dep := range cellStruct.deps {
-		depCell, exists := t.cells[dep]
-		depValue := 0.0
-		if exists {
-			depValue = depCell.value
+	// If cell has dependencies, evaluate the formula
+	if len(cellStruct.deps) > 0 {
+		// Build value map for replacement
+		valueMap := make(map[string]float64)
+		for _, dep := range cellStruct.deps {
+			depCell, exists := t.cells[dep]
+			if exists {
+				valueMap[dep] = depCell.value
+			} else {
+				valueMap[dep] = 0.0
+			}
 		}
 
-		// This simplified replacement is naive and might break multi-digit numbers
-		// if a cell name is a substring of another (e.g., "a1" in "a10").
-		// A more robust solution would use an Abstract Syntax Tree (AST) or
-		// a proper expression evaluation library.
-		evalFormula = strings.ReplaceAll(evalFormula, dep, strconv.FormatFloat(depValue, 'f', -1, 64))
+		// Replace cell references with values (sorted by length descending to avoid substring issues)
+		evalFormula := t.replaceCellRefsWithValues(cellStruct.formula, valueMap)
+
+		// Evaluate the expression
+		result := t.evaluateExpression(evalFormula)
+		cellStruct.value = result
 	}
 
-	// *** SIMPLIFIED EVALUATION START ***
-	// Since full expression parsing is complex, we'll assume a very simple
-	// formula structure (e.g., a1+b2, not a1*(b2+c3)) for this example.
-	// A production-ready version must use an expression evaluator.
-
-	result := 0.0
-	// For simplicity, we just try to evaluate the string as an expression.
-	// In a real application, you'd use a math expression parser/evaluator.
-	// For this example, we'll just demonstrate the dependency logic.
-
-	// Attempt to get the final value by *assuming* simple operations
-	// and using a placeholder for the actual evaluation.
-	result = t.evaluateSimpleExpression(evalFormula)
-	cellStruct.value = result
-	// *** SIMPLIFIED EVALUATION END ***
-
-propagate:
-	// Recursively recalculate all cells that depend on the current cell
+	// Propagate changes to dependent cells
 	for _, dependentCell := range t.revDeps[cell] {
 		t.recalculate(dependentCell)
 	}
 }
 
-// Placeholder for expression evaluation.
-// A real solution would use a library like 'github.com/Knetic/govaluate'
-// or implement a shunting-yard algorithm and RPN evaluator.
-func (t *Table) evaluateSimpleExpression(expression string) float64 {
-	// Highly simplified: just for demonstration.
-	// This function *cannot* safely evaluate arbitrary math expressions.
-	// Assume it returns the correct result for the sake of the dependency example.
+// replaceCellRefsWithValues replaces cell references with their values
+// Sorts cell names by length (descending) to avoid substring conflicts (e.g., a10 before a1)
+func (t *Table) replaceCellRefsWithValues(formula string, valueMap map[string]float64) string {
+	// Sort cell names by length (longest first) to avoid substring issues
+	cellNames := make([]string, 0, len(valueMap))
+	for name := range valueMap {
+		cellNames = append(cellNames, name)
+	}
 
-	// Example: If expression is "10.0+5.0", it should return 15.0
+	// Sort by length descending
+	sort.Slice(cellNames, func(i, j int) bool {
+		return len(cellNames[i]) > len(cellNames[j])
+	})
 
-	// In a real scenario, this would involve:
-	// 1. Tokenization
-	// 2. Shunting-yard algorithm (to convert infix to postfix/RPN)
-	// 3. RPN evaluation
+	result := formula
+	for _, name := range cellNames {
+		value := valueMap[name]
+		result = strings.ReplaceAll(result, name, strconv.FormatFloat(value, 'f', -1, 64))
+	}
+	return result
+}
 
-	// For now, let's just make up a value if we can't parse it
-	// as a float (which would happen if it still contains an operator)
+// evaluateExpression evaluates a simple math expression using a stack-based approach
+// Supports +, -, *, / with proper precedence
+func (t *Table) evaluateExpression(expression string) float64 {
+	expression = strings.TrimSpace(expression)
+
+	// Try parsing as simple number first
 	val, err := strconv.ParseFloat(expression, 64)
 	if err == nil {
 		return val
 	}
 
-	// If it's still a complex formula, we'll return a placeholder.
-	// For a demonstration, assume it *successfully* evaluates to an arbitrary result
-	// based on the length of the string to show a change.
-	return float64(len(expression))
+	tokens := t.tokenize(expression)
+	if len(tokens) == 0 {
+		return 0
+	}
+
+	// Two stacks: one for values, one for operators
+	values := []float64{}
+	ops := []string{}
+
+	precedence := func(op string) int {
+		if op == "+" || op == "-" {
+			return 1
+		}
+		if op == "*" || op == "/" {
+			return 2
+		}
+		return 0
+	}
+
+	applyOp := func(a, b float64, op string) float64 {
+		switch op {
+		case "+":
+			return a + b
+		case "-":
+			return a - b
+		case "*":
+			return a * b
+		case "/":
+			if b != 0 {
+				return a / b
+			}
+			return 0
+		}
+		return 0
+	}
+
+	for _, token := range tokens {
+		// If token is a number, push to values stack
+		if num, err := strconv.ParseFloat(token, 64); err == nil {
+			values = append(values, num)
+		} else {
+			// Token is an operator
+			// While top of ops has same or greater precedence, apply it
+			for len(ops) > 0 && precedence(ops[len(ops)-1]) >= precedence(token) {
+				op := ops[len(ops)-1]
+				ops = ops[:len(ops)-1]
+
+				if len(values) >= 2 {
+					b := values[len(values)-1]
+					a := values[len(values)-2]
+					values = values[:len(values)-2]
+					values = append(values, applyOp(a, b, op))
+				}
+			}
+			ops = append(ops, token)
+		}
+	}
+
+	// Apply remaining operators
+	for len(ops) > 0 {
+		op := ops[len(ops)-1]
+		ops = ops[:len(ops)-1]
+
+		if len(values) >= 2 {
+			b := values[len(values)-1]
+			a := values[len(values)-2]
+			values = values[:len(values)-2]
+			values = append(values, applyOp(a, b, op))
+		}
+	}
+
+	if len(values) > 0 {
+		return values[0]
+	}
+	return 0
+}
+
+// tokenize splits expression into numbers and operators
+func (t *Table) tokenize(expr string) []string {
+	tokens := []string{}
+	current := ""
+
+	for i := 0; i < len(expr); i++ {
+		ch := expr[i]
+		if ch == '+' || ch == '-' || ch == '*' || ch == '/' {
+			if current != "" {
+				tokens = append(tokens, current)
+				current = ""
+			}
+			tokens = append(tokens, string(ch))
+		} else if ch != ' ' {
+			current += string(ch)
+		}
+	}
+
+	if current != "" {
+		tokens = append(tokens, current)
+	}
+
+	return tokens
 }
 
 // get_cell returns the current computed value of the cell.
@@ -219,4 +307,30 @@ func main() {
 	fmt.Printf("a1: %.2f\n", a1Val) // Expected: 50.00
 	fmt.Printf("b2: %.2f\n", b2Val) // Expected: 55.00 (50 + 5)
 	fmt.Printf("c3: %.2f\n", c3Val) // Expected: 5.00 (based on simplified eval of "55.0*2")
+	fmt.Println("--------------------")
+
+	// 5. Complex formula with multiple cell references
+	fmt.Printf("Setting d4 to 'a1+b2'...\n")
+	table.set_cell("d4", "a1+b2")
+	// Dependencies: d4 depends on both a1 and b2
+
+	d4Val, _ := table.get_cell("d4")
+	fmt.Printf("Complex Formula Test:\n")
+	fmt.Printf("d4 (a1+b2): %.2f\n", d4Val) // Expected: 105.00 (50 + 55)
+	fmt.Println("--------------------")
+
+	// 6. Update a1 again to verify d4 recalculates
+	fmt.Printf("Updating a1 to '100'...\n")
+	table.set_cell("a1", "100")
+
+	a1Val, _ = table.get_cell("a1")
+	b2Val, _ = table.get_cell("b2")
+	c3Val, _ = table.get_cell("c3")
+	d4Val, _ = table.get_cell("d4")
+
+	fmt.Printf("Final Values (after a1 changed to 100):\n")
+	fmt.Printf("a1: %.2f\n", a1Val)  // Expected: 100.00
+	fmt.Printf("b2: %.2f\n", b2Val)  // Expected: 105.00 (100 + 5)
+	fmt.Printf("c3: %.2f\n", c3Val)  // Expected: 210.00 (105 * 2)
+	fmt.Printf("d4: %.2f\n", d4Val)  // Expected: 205.00 (100 + 105)
 }

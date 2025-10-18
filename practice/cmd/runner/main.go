@@ -19,10 +19,94 @@ func main() {
 		return
 	}
 
+	removeDuplicates("abbaca")
+	fmt.Println(removeDuplicatesStack("abbaca"))
+	fmt.Println(minRemoveToMakeValid("lee(t(c)o)de)"))
+
 	runArrayExamples()
 	runStringExamples()
 	runLinkedListExamples()
 	runTreeExamples()
+}
+
+func removeDuplicates(s string) string {
+	i := 0
+	j := 1
+	b := []byte(s)
+	for j < len(b) {
+		if b[i] == b[j] {
+			b = append(b[:i], b[j+1:]...)
+			if i > 0 {
+				i--
+				j--
+			}
+			continue
+		}
+		i++
+		j++
+	}
+	return string(b)
+}
+
+func removeDuplicatesStack(s string) string {
+	stack := []byte{}
+	top := 0
+	stack = append(stack, s[0])
+	i := 1
+	for i < len(s) {
+		fmt.Println(string(stack[:top+1]), i)
+		if s[i] == stack[top] {
+			i++
+			top--
+			if top < 0 {
+				top = 0
+				stack[top] = s[i]
+				i++
+			}
+		} else {
+			top++
+			if top >= len(stack) {
+				stack = append(stack, s[i])
+			} else {
+				stack[top] = s[i]
+			}
+			i++
+
+		}
+	}
+	return string(stack[:top+1])
+}
+
+func minRemoveToMakeValid(s string) string {
+	lefts := []int{}
+	top := -1
+	rights := make(map[int]int)
+	for i := 0; i < len(s); i++ {
+		if s[i] == '(' {
+			top++
+			lefts = append(lefts, i)
+		}
+		if s[i] == ')' {
+			if top >= 0 {
+				lefts = lefts[:top]
+				top--
+			} else {
+				rights[i]++
+			}
+		}
+	}
+	for _, v := range lefts {
+		rights[v]++
+	}
+
+	resultBytes := []byte{}
+	for i := 0; i < len(s); i++ {
+		if _, ok := rights[i]; ok {
+			continue
+		}
+		resultBytes = append(resultBytes, s[i])
+	}
+	return string(resultBytes)
 }
 
 func printHelp() {

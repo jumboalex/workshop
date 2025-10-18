@@ -1,5 +1,10 @@
 package stringproblems
 
+import (
+	"maps"
+	"strings"
+)
+
 func GcdOfStrings(str1 string, str2 string) string {
 	prefix := str1
 	if len(str1) > len(str2) {
@@ -199,7 +204,7 @@ func FindAnagrams(s string, p string) []int {
 			}
 		}
 
-		if mapsEqual(pChars, sChars) {
+		if maps.Equal(pChars, sChars) {
 			result = append(result, i-len(p)+1)
 		}
 	}
@@ -240,11 +245,51 @@ func CheckInclusion(s1 string, s2 string) bool {
 			}
 		}
 
-		if mapsEqual(s1Map, s2Map) {
+		if maps.Equal(s1Map, s2Map) {
 			return true
 		}
 	}
 	return false
+}
+
+func IsAlienSorted(words []string, order string) bool {
+	orderMap := make(map[byte]int)
+	for i := 0; i < len(order); i++ {
+		orderMap[order[i]] = i
+	}
+
+	i := 0
+	j := i + 1
+
+	for j < len(words) {
+		l1 := len(words[i])
+		l2 := len(words[j])
+
+		short := l1
+		if l2 < short {
+			short = l2
+		}
+
+		less := false
+		for k := 0; k < short; k++ {
+			if orderMap[words[i][k]] > orderMap[words[j][k]] {
+				return false
+			}
+			if orderMap[words[i][k]] < orderMap[words[j][k]] {
+				less = true
+				break
+			}
+		}
+
+		if !less {
+			if l1 > l2 {
+				return false
+			}
+		}
+		i++
+		j++
+	}
+	return true
 }
 
 func max(a, b int) int {
@@ -254,14 +299,24 @@ func max(a, b int) int {
 	return b
 }
 
-func mapsEqual(a, b map[byte]int) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for k, v := range a {
-		if b[k] != v {
+func isPalindrome(s string) bool {
+	s = strings.ToLower(s)
+	i := 0
+	j := len(s) - 1
+	for i < j {
+		if s[i] < '0' || s[i] > 'z' || (s[i] < 'a' && s[i] > '9') {
+			i++
+			continue
+		}
+		if s[j] < '0' || s[j] > 'z' || (s[j] < 'a' && s[j] > '9') {
+			j--
+			continue
+		}
+		if s[i] != s[j] {
 			return false
 		}
+		i++
+		j--
 	}
 	return true
 }

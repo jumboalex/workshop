@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/csv"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strconv"
@@ -38,7 +39,7 @@ func main() {
 
 	// skip header
 	_, err = reader.Read()
-	if err != nil {
+	if err != nil && err != io.EOF {
 		fmt.Println(err)
 	}
 
@@ -66,37 +67,27 @@ func main() {
 		}
 
 		transactions = append(transactions, transaction)
-		fmt.Println(transaction)
 	}
 
-	merchantReport := make(map[string]map[time.Time]int64)
+	merchantReport := make(map[string][]Transaction)
 	for _, transact := range transactions {
-		if _, ok := merchantReport[transact.MerchantName]; !ok {
-			subsInterval := make(map[time.Time]int64)
-			subsInterval[transact.CreatedAt] = transact.Amount
-			merchantReport[transact.MerchantName] = subsInterval
-		} else {
-			merchantReport[transact.MerchantName][transact.CreatedAt] = transact.Amount
-		}
+		merchantReport[transact.MerchantName] = append(merchantReport[transact.MerchantName], transact)
 	}
 
-	for merchant, timestampAmounts := range merchantReport {
-		if len(timestampAmounts) < 2 {
+	for merchant, merchantTransactions := range merchantReport {
+		if len(merchantTransactions) < 2 {
 			continue
 		}
 
-		times := []time.Time{}
-		for k := range timestampAmounts {
-			times = append(times, k)
-		}
-		sort.Slice(times, func(i, j int) bool {
-			return times[i].Before(times[j])
+		sort.Slice(merchantTransactions, func(i, j int) bool {
+			return merchantTransactions[i].CreatedAt.Before(merchantTransactions[j].CreatedAt)
 		})
 
 		// Calculate intervals between consecutive transactions
 		intervals := make(map[int]int) // interval in days -> count
-		for i := 1; i < len(times); i++ {
-			days := int(times[i].Sub(times[i-1]).Hours() / 24)
+		for i := 1; i < len(merchantTransactions); i++ {
+			hours := merchantTransactions[i].CreatedAt.Sub(merchantTransactions[i-1].CreatedAt).Hours()
+			days := int(hours/24 + 0.5) // Round to nearest day
 			intervals[days]++
 		}
 
@@ -112,7 +103,7 @@ func main() {
 
 		// Only consider it recurring if the interval is weekly (7 days)
 		if mostCommonInterval == 7 && maxCount >= 1 {
-			amount := timestampAmounts[times[0]]
+			amount := merchantTransactions[0].Amount
 			amountStr := fmt.Sprintf("$%.2f", float64(amount)/100)
 			fmt.Printf("%s: %s / week\n", merchant, amountStr)
 		}

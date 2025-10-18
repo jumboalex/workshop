@@ -8,6 +8,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"unicode"
 )
 
 func main() {
@@ -34,27 +35,31 @@ func concordance(filename string, n int) {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		words := strings.Split(line, " ")
+		words := strings.FieldsFunc(line, func(r rune) bool {
+			return !unicode.IsLetter(r) && !unicode.IsNumber(r)
+		})
 		for _, w := range words {
-			w := strings.ToLower(w)
-			if _, ok := dic[w]; ok {
-				dic[w]++
-			} else {
-				dic[w] = 1
-			}
+			w = strings.ToLower(w)
+			dic[w]++
 		}
 	}
 
-	wordFreq := []WordFreq{}
+	if err := scanner.Err(); err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	wordFreq := make([]WordFreq, 0, len(dic))
 	for k, v := range dic {
 		wordFreq = append(wordFreq, WordFreq{token: k, count: v})
 	}
 
-	slices.Sort(wordFreq, func(i, j int) bool {
-		return wordFreq[i].count > wordFreq[j].count
+	slices.SortFunc(wordFreq, func(i, j WordFreq) int {
+		return j.count - i.count
 	})
 
-	for i := 0; i < n; i++ {
+	limit := min(n, len(wordFreq))
+	for i := 0; i < limit; i++ {
 		fmt.Println(wordFreq[i].token, "   ", wordFreq[i].count)
 	}
 }
@@ -128,6 +133,10 @@ func countRequest(centaurs []int) int {
 				continue
 			}
 			if centaurs[j] >= centaurs[i]/2+7 && centaurs[j] < centaurs[i] {
+				// Rule 3: A centaur over 100 years old will not send a friend request to a recipient under 100 years old
+				if centaurs[i] > 100 && centaurs[j] < 100 {
+					continue
+				}
 				result++
 				continue
 			}
