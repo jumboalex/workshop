@@ -73,13 +73,13 @@ func downloadText(url string) (string, error) {
 // calculateDistribution 计算单词长度分布。
 func calculateDistribution(text string, vocabulary map[string]struct{}) map[int]int {
 	// 匹配所有连续的字母字符 (a-z)
-	re := regexp.MustCompile("[^a-z]+") 
+	re := regexp.MustCompile("[^a-z]+")
 	cleanedText := re.ReplaceAllString(text, " ")
-	
+
 	potentialWords := strings.Fields(cleanedText)
-	
+
 	lengthCounts := make(map[int]int)
-	
+
 	for _, word := range potentialWords {
 		// 检查单词是否在词库中
 		if _, exists := vocabulary[word]; exists {
@@ -129,12 +129,12 @@ func printHistogram(lengthCounts map[int]int) {
 		percentage := float64(count) / float64(totalValidWords) * 100
 		// 计算直方图的块数
 		stars := int((float64(count) / float64(maxCount)) * float64(barWidth))
-		
+
 		// 打印结果
-		fmt.Printf("  %2d | %5d (%5.1f%%) | %s\n", 
-			length, 
-			count, 
-			percentage, 
+		fmt.Printf("  %2d | %5d (%5.1f%%) | %s\n",
+			length,
+			count,
+			percentage,
 			strings.Repeat("█", stars))
 	}
 

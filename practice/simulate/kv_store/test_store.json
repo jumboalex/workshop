@@ -1,0 +1,17 @@
+{
+  "data": {
+    "age": "30",
+    "city": "NYC",
+    "name": "Alice",
+    "role": "admin",
+    "status": "active"
+  },
+  "valueCount": {
+    "30": 1,
+    "Alice": 1,
+    "NYC": 1,
+    "active": 1,
+    "admin": 1
+  },
+  "checkpoints": []
+}

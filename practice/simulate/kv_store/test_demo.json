@@ -1,0 +1,21 @@
+{
+  "data": {
+    "data": 777,
+    "value": 50,
+    "yes": 1
+  },
+  "valueCount": {
+    "1": 1,
+    "50": 1,
+    "777": 1
+  },
+  "checkpoints": [
+    {
+      "ChangedKeys": {},
+      "DeletedKeys": {}
+    }
+  ],
+  "tracking": {
+    "value": null
+  }
+}

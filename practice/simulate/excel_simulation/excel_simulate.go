@@ -37,35 +37,49 @@ var cellRefRegex = regexp.MustCompile(`[a-zA-Z]+\d+`)
 // set_cell sets the formula for a cell and triggers recalculation.
 func (t *Table) set_cell(cell string, formula string) error {
 	// 1. Clean up old dependencies
-	oldCell, exists := t.cells[cell]
-	if exists {
+	if oldCell, exists := t.cells[cell]; exists {
 		for _, dep := range oldCell.deps {
 			t.removeRevDep(dep, cell)
 		}
 	}
 
-	// 2. Analyze new dependencies and store formula/value
-	cellStruct := &Cell{formula: formula}
-
-	// Check if the formula is a simple number
-	val, err := strconv.ParseFloat(formula, 64)
-	if err == nil {
-		cellStruct.value = val
-	} else {
-		// It's a formula, extract dependencies
-		cellStruct.deps = cellRefRegex.FindAllString(formula, -1)
-		// Update reverse dependencies
-		for _, dep := range cellStruct.deps {
-			t.addRevDep(dep, cell)
-		}
+	// 2. Parse and validate formula
+	cellStruct, err := t.parseFormula(formula)
+	if err != nil {
+		return fmt.Errorf("cell %s: %w", cell, err)
 	}
 
-	t.cells[cell] = cellStruct
+	// 3. Update reverse dependencies
+	for _, dep := range cellStruct.deps {
+		t.addRevDep(dep, cell)
+	}
 
-	// 3. Recalculate the current cell and all dependents
+	// 4. Store and recalculate
+	t.cells[cell] = cellStruct
 	t.recalculate(cell)
 
 	return nil
+}
+
+// parseFormula parses a formula string and returns a Cell struct
+func (t *Table) parseFormula(formula string) (*Cell, error) {
+	cell := &Cell{formula: formula}
+
+	// Try parsing as a number
+	if val, err := strconv.ParseFloat(formula, 64); err == nil {
+		cell.value = val
+		return cell, nil
+	}
+
+	// Try parsing as Excel-style formula (with "=")
+	if formulaContent, hasPrefix := strings.CutPrefix(formula, "="); hasPrefix {
+		cell.formula = formulaContent
+		cell.deps = cellRefRegex.FindAllString(formulaContent, -1)
+		return cell, nil
+	}
+
+	// Invalid format
+	return nil, fmt.Errorf("invalid formula format: formulas must start with '=' (e.g., '=A1+B1')")
 }
 
 // Helper: Adds a reverse dependency
@@ -276,12 +290,12 @@ func main() {
 	table.set_cell("a1", "10")
 	// a1 = 10
 
-	// 2. Set a dependent formula
-	table.set_cell("b2", "a1+5") // b2 = 10 + 5 = 15
+	// 2. Set a dependent formula (Excel-style with "=")
+	table.set_cell("b2", "=a1+5") // b2 = 10 + 5 = 15
 	// Dependencies: b2 depends on a1
 
-	// 3. Set a second-level dependent formula
-	table.set_cell("c3", "b2*2") // c3 = 15 * 2 (simplified evaluation logic)
+	// 3. Set a second-level dependent formula (Excel-style with "=")
+	table.set_cell("c3", "=b2*2") // c3 = 15 * 2 = 30
 	// Dependencies: c3 depends on b2, which depends on a1
 
 	a1Val, _ := table.get_cell("a1")
@@ -290,8 +304,8 @@ func main() {
 
 	fmt.Printf("Initial Values:\n")
 	fmt.Printf("a1: %.2f\n", a1Val) // Expected: 10.00
-	fmt.Printf("b2: %.2f\n", b2Val) // Expected: 15.00 (based on a1's value)
-	fmt.Printf("c3: %.2f\n", c3Val) // Expected: 5.00 (based on simplified eval of "15.0*2")
+	fmt.Printf("b2: %.2f\n", b2Val) // Expected: 15.00 (10 + 5)
+	fmt.Printf("c3: %.2f\n", c3Val) // Expected: 30.00 (15 * 2)
 	fmt.Println("--------------------")
 
 	// 4. Update the base cell (a1)
@@ -306,12 +320,12 @@ func main() {
 	fmt.Printf("Updated Values (after a1 changed):\n")
 	fmt.Printf("a1: %.2f\n", a1Val) // Expected: 50.00
 	fmt.Printf("b2: %.2f\n", b2Val) // Expected: 55.00 (50 + 5)
-	fmt.Printf("c3: %.2f\n", c3Val) // Expected: 5.00 (based on simplified eval of "55.0*2")
+	fmt.Printf("c3: %.2f\n", c3Val) // Expected: 110.00 (55 * 2)
 	fmt.Println("--------------------")
 
 	// 5. Complex formula with multiple cell references
-	fmt.Printf("Setting d4 to 'a1+b2'...\n")
-	table.set_cell("d4", "a1+b2")
+	fmt.Printf("Setting d4 to '=a1+b2'...\n")
+	table.set_cell("d4", "=a1+b2")
 	// Dependencies: d4 depends on both a1 and b2
 
 	d4Val, _ := table.get_cell("d4")
@@ -333,4 +347,20 @@ func main() {
 	fmt.Printf("b2: %.2f\n", b2Val)  // Expected: 105.00 (100 + 5)
 	fmt.Printf("c3: %.2f\n", c3Val)  // Expected: 210.00 (105 * 2)
 	fmt.Printf("d4: %.2f\n", d4Val)  // Expected: 205.00 (100 + 105)
+	fmt.Println("--------------------")
+
+	// 7. Test error handling for formulas without "="
+	fmt.Printf("Testing error handling: Setting e5 to 'a1*3' (without = prefix)...\n")
+	err := table.set_cell("e5", "a1*3")
+	if err != nil {
+		fmt.Printf("Error (as expected): %v\n", err)
+	}
+	fmt.Println("--------------------")
+
+	// 8. Test correct Excel-style formula
+	fmt.Printf("Setting e5 to '=a1*3' (with = prefix)...\n")
+	table.set_cell("e5", "=a1*3")
+	e5Val, _ := table.get_cell("e5")
+	fmt.Printf("Excel-style Formula Test:\n")
+	fmt.Printf("e5 (=a1*3): %.2f\n", e5Val) // Expected: 300.00 (100 * 3)
 }

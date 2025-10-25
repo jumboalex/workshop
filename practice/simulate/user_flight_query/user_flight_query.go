@@ -42,70 +42,55 @@ func FindUserLocation(flights []Flight, userID string, checkTime time.Time) Loca
 		return LocationResult{"", "位置未知 (无航班数据)"}
 	}
 
-	// 记录最近完成的航班
-	var lastFinishedFlight *Flight
-	foundFinishedFlight := false
-
-	for i := range userFlights {
-		f := &userFlights[i] // 使用指针方便修改和比较
-
-		// 2. 检查用户是否正在飞行
-		// 如果检查时间点落在 (出发时间, 到达时间] 区间内
-		if !checkTime.Before(f.DepartureTime) && !checkTime.After(f.ArrivalTime) {
-			// 在 Go 语言中，我们通常假设到达时间点用户已在到达机场，
-			// 但如果在开放区间 (DepartureTime, ArrivalTime) 内，用户就在空中。
-			// 这里我们采取更严谨的判断：
-			// 如果 checkTime 在 (出发时间, 到达时间) 之间，则在飞行中。
-			if checkTime.After(f.DepartureTime) && checkTime.Before(f.ArrivalTime) {
-				return LocationResult{
-					AirportCode: fmt.Sprintf("%s -> %s", f.DepartureCode, f.ArrivalCode),
-					Status:      "飞行中",
-				}
-			}
-			// 如果 checkTime 恰好是 ArrivalTime，我们把它视为已到达
-			// 如果 checkTime 恰好是 DepartureTime，我们把它视为在出发机场
-		}
-
-		// 3. 查找最近已完成的航班
-		// 如果检查时间晚于航班到达时间，说明该航班已完成
-		if checkTime.After(f.ArrivalTime) {
-			foundFinishedFlight = true
-			if lastFinishedFlight == nil || f.ArrivalTime.After(lastFinishedFlight.ArrivalTime) {
-				lastFinishedFlight = f
-			}
-		}
-
-		// 4. 检查是否有即将出发的航班（可能用户就在出发机场）
-		// 如果检查时间等于出发时间，用户在出发机场
-		if checkTime.Equal(f.DepartureTime) {
-			// 如果 checkTime 恰好是某一航班的出发时间，
-			// 并且这个航班比最近完成的航班要新，则返回该出发机场
-			if !foundFinishedFlight || checkTime.After(lastFinishedFlight.ArrivalTime) {
-				return LocationResult{f.DepartureCode, "在机场 (即将出发)"}
-			}
-		}
-	}
-
-	// 5. 返回结果
-	if lastFinishedFlight != nil {
-		// 返回最近完成航班的到达机场
-		return LocationResult{
-			AirportCode: lastFinishedFlight.ArrivalCode,
-			Status:      "在机场 (已到达)",
-		}
-	}
-
-	// 如果没有完成的航班，且没有正在飞行的航班，则用户可能在第一个航班的出发机场，
-	// 或者根本不在任何一个已知机场。为了严谨，我们返回最早航班的出发机场作为起点。
+	// 2. 按出发时间排序航班
 	sort.Slice(userFlights, func(i, j int) bool {
 		return userFlights[i].DepartureTime.Before(userFlights[j].DepartureTime)
 	})
 
-	// 如果用户还没开始第一个航班
-	if checkTime.Before(userFlights[0].DepartureTime) {
+	// 3. 使用二分查找找到最后一个出发时间 <= checkTime 的航班
+	// 这样可以快速定位用户可能所在的航班或已完成的最近航班
+	idx := sort.Search(len(userFlights), func(i int) bool {
+		return userFlights[i].DepartureTime.After(checkTime)
+	})
+	// idx 现在指向第一个出发时间 > checkTime 的航班
+	// 所以 idx-1 是最后一个出发时间 <= checkTime 的航班
+
+	// 4. 边界情况：如果所有航班都还未出发
+	if idx == 0 {
 		return LocationResult{userFlights[0].DepartureCode, "在机场 (等待出发)"}
 	}
 
+	// 5. 检查最近的已出发航班（userFlights[idx-1]）
+	recentFlight := &userFlights[idx-1]
+
+	// 5a. 检查用户是否正在飞行中
+	if checkTime.After(recentFlight.DepartureTime) && checkTime.Before(recentFlight.ArrivalTime) {
+		return LocationResult{
+			AirportCode: fmt.Sprintf("%s -> %s", recentFlight.DepartureCode, recentFlight.ArrivalCode),
+			Status:      "飞行中",
+		}
+	}
+
+	// 5b. 检查是否恰好在出发时刻
+	if checkTime.Equal(recentFlight.DepartureTime) {
+		return LocationResult{recentFlight.DepartureCode, "在机场 (即将出发)"}
+	}
+
+	// 5c. 检查是否恰好在到达时刻（视为已到达）
+	if checkTime.Equal(recentFlight.ArrivalTime) {
+		return LocationResult{recentFlight.ArrivalCode, "在机场 (已到达)"}
+	}
+
+	// 6. 如果 checkTime 在 recentFlight 的到达时间之后
+	// 说明用户已完成该航班，停留在到达机场
+	if checkTime.After(recentFlight.ArrivalTime) {
+		return LocationResult{
+			AirportCode: recentFlight.ArrivalCode,
+			Status:      "在机场 (已到达)",
+		}
+	}
+
+	// 7. 理论上不应该到达这里
 	return LocationResult{"", "位置未知 (数据边界或逻辑异常)"}
 }
 
@@ -170,6 +155,23 @@ func main() {
 	checkTime6 := mustParseTime("2025-10-10 14:00")
 	result6 := FindUserLocation(allFlights, "U123", checkTime6)
 	printResult("U123", result6) // 预期: 在机场 (MIA)
+
+	fmt.Println("\n--- 额外测试边界情况 ---")
+
+	// 案例 7: 在两个航班之间的间隔时间（停留在机场）
+	checkTime7 := mustParseTime("2025-10-09 12:00")
+	result7 := FindUserLocation(allFlights, "U123", checkTime7)
+	printResult("U123", result7) // 预期: 在机场 (ORD, 已到达)
+
+	// 案例 8: 正在第一个航班飞行中
+	checkTime8 := mustParseTime("2025-10-09 09:00")
+	result8 := FindUserLocation(allFlights, "U123", checkTime8)
+	printResult("U123", result8) // 预期: 飞行中 (JFK -> ORD)
+
+	// 案例 9: 完成所有航班后
+	checkTime9 := mustParseTime("2025-10-11 00:00")
+	result9 := FindUserLocation(allFlights, "U123", checkTime9)
+	printResult("U123", result9) // 预期: 在机场 (DAL, 已到达)
 }
 
 // 辅助函数: 打印结果
