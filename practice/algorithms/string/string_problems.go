@@ -320,3 +320,50 @@ func isPalindrome(s string) bool {
 	}
 	return true
 }
+
+// DecodeString decodes the encoded string with pattern k[encoded_string]
+// Example: "3[a]2[bc]" -> "aaabcbc", "3[a2[c]]" -> "accaccacc"
+func decodeString(s string) string {
+	stack := []string{}
+	nStack := []int{}
+	k := 0
+	currentStr := ""
+
+	for i := 0; i < len(s); i++ {
+		if s[i] >= '0' && s[i] <= '9' {
+			// Build multi-digit number
+			k = k*10 + int(s[i]-'0')
+			continue
+		}
+		if s[i] == '[' {
+			// Push current state onto stacks
+			nStack = append(nStack, k)
+			stack = append(stack, currentStr)
+			// Reset for new bracket level
+			k = 0
+			currentStr = ""
+			continue
+		}
+		if s[i] >= 'a' && s[i] <= 'z' {
+			// Build current string
+			currentStr += string(s[i])
+			continue
+		}
+		if s[i] == ']' {
+			// Pop count and previous string
+			n := nStack[len(nStack)-1]
+			nStack = nStack[:len(nStack)-1]
+
+			prevStr := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+
+			// Repeat current string n times and prepend previous string
+			repeated := ""
+			for j := 0; j < n; j++ {
+				repeated += currentStr
+			}
+			currentStr = prevStr + repeated
+		}
+	}
+	return currentStr
+}
